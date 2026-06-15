@@ -3,7 +3,6 @@ FIFA World Cup 2026 Live Dashboard - Backend Proxy
 Proxies and normalizes the ESPN scoreboard API.
 """
 import os
-import time
 from datetime import datetime, timezone
 from functools import lru_cache
 
@@ -15,13 +14,6 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
 ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
-CACHE_SECONDS = 20
-
-_last_fetch = {"time": 0, "date": None, "data": None}
-
-
-def _now() -> float:
-    return time.time()
 
 
 def _normalize_team(competitor: dict) -> dict:
@@ -156,13 +148,7 @@ def _fetch_scoreboard(date: str | None = None) -> dict:
 
 
 def _get_scoreboard(date: str | None = None) -> dict:
-    now = _now()
-    cache = _last_fetch
-    if cache["data"] is None or now - cache["time"] > CACHE_SECONDS or cache["date"] != date:
-        cache["data"] = _fetch_scoreboard(date)
-        cache["time"] = now
-        cache["date"] = date
-    return cache["data"]
+    return _fetch_scoreboard(date)
 
 
 @app.route("/")
@@ -175,7 +161,11 @@ def scoreboard():
     date = request.args.get("date")
     try:
         data = _get_scoreboard(date)
-        return jsonify(data)
+        response = jsonify(data)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     except requests.RequestException as exc:
         return jsonify({"error": "Failed to fetch ESPN data", "detail": str(exc)}), 502
     except Exception as exc:

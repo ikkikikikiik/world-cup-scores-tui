@@ -128,7 +128,7 @@ function renderMatch(match) {
         : `${renderTeam(home, true)}${renderTeam(away, false)}`;
 
     return `
-        <article class="match-card ${stateClass}" data-state="${match.state}">
+        <article class="match-card ${stateClass}" data-id="${match.id}" data-state="${match.state}">
             <div class="match-header">
                 <div class="match-meta">
                     ${getStateBadge(match.state, match.clock || match.shortDetail)}
@@ -166,6 +166,53 @@ function sortMatches(matches) {
     });
 }
 
+function updateContainer(container, matches, renderFn) {
+    const existingCards = new Map(
+        Array.from(container.children)
+            .filter((c) => c.classList.contains("match-card"))
+            .map((c) => [c.dataset.id, c])
+    );
+
+    const seen = new Set();
+    const fragment = document.createDocumentFragment();
+
+    matches.forEach((match) => {
+        seen.add(String(match.id));
+        const html = renderFn(match);
+        const existingCard = existingCards.get(String(match.id));
+
+        if (!existingCard) {
+            const wrapper = document.createElement("div");
+            wrapper.innerHTML = html.trim();
+            fragment.appendChild(wrapper.firstElementChild);
+            return;
+        }
+
+        // Only replace the card if its content actually changed.
+        if (existingCard.outerHTML !== html.trim()) {
+            const wrapper = document.createElement("div");
+            wrapper.innerHTML = html.trim();
+            container.replaceChild(wrapper.firstElementChild, existingCard);
+        }
+    });
+
+    // Remove cards that are no longer present.
+    existingCards.forEach((card, id) => {
+        if (!seen.has(id)) card.remove();
+    });
+
+    // Clear loading/empty/error placeholders once real cards are rendered.
+    if (matches.length > 0) {
+        Array.from(container.children)
+            .filter((c) => !c.classList.contains("match-card"))
+            .forEach((c) => c.remove());
+    }
+
+    if (fragment.childNodes.length > 0) {
+        container.appendChild(fragment);
+    }
+}
+
 function render(data) {
     lastUpdatedEl.textContent = `Updated: ${new Date(data.fetchedAt).toLocaleTimeString()}`;
 
@@ -175,7 +222,7 @@ function render(data) {
 
     if (liveMatches.length > 0) {
         liveSectionEl.classList.remove("hidden");
-        liveMatchesEl.innerHTML = liveMatches.map(renderMatch).join("");
+        updateContainer(liveMatchesEl, liveMatches, renderMatch);
     } else {
         liveSectionEl.classList.add("hidden");
         liveMatchesEl.innerHTML = "";
@@ -186,11 +233,10 @@ function render(data) {
         return;
     }
 
-    matchesEl.innerHTML = gridMatches.map(renderMatch).join("");
+    updateContainer(matchesEl, gridMatches, renderMatch);
 }
 
 async function loadData() {
-    matchesEl.classList.add("loading");
     try {
         const resp = await fetch(API_URL);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -198,8 +244,6 @@ async function loadData() {
         render(data);
     } catch (err) {
         matchesEl.innerHTML = `<div class="error">Failed to load matches: ${err.message}</div>`;
-    } finally {
-        matchesEl.classList.remove("loading");
     }
 }
 
@@ -209,8 +253,9 @@ function startPolling() {
     pollInterval = setInterval(loadData, 15000);
 }
 
-refreshBtn.addEventListener("click", () => {
-    loadData();
+refreshBtn.addEventListener("click", async () => {
+    lastUpdatedEl.textContent = "Refreshing...";
+    await loadData();
 });
 
 startPolling();

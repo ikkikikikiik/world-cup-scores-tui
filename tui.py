@@ -11,7 +11,7 @@ from textual.reactive import reactive
 from textual.widgets import Footer, Header, Label, Static
 
 ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
-REFRESH_SECONDS = 30
+REFRESH_SECONDS = 15
 TOURNAMENT_END_DATE = "20260719"
 
 
