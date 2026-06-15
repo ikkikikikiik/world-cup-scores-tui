@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIFA World Cup 2026 Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="container">
+        <div class="controls">
+            <span id="last-updated">Loading...</span>
+            <button id="refresh-btn" class="btn">Refresh</button>
+        </div>
+
+        <section id="live-section" class="live-section hidden">
+            <h2 class="live-section-title">🔴 Live Now</h2>
+            <div id="live-matches" class="live-matches"></div>
+        </section>
+
+        <div id="matches" class="matches">
+            <div class="loading">Loading matches...</div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>Data provided by ESPN. For demo purposes only.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

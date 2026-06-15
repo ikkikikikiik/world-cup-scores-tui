@@ -1,0 +1,361 @@
+:root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-light: #334155;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #22c55e;
+    --accent-glow: rgba(34, 197, 94, 0.3);
+    --danger: #ef4444;
+    --warning: #f59e0b;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+}
+
+.live-section {
+    margin-bottom: 1.5rem;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.live-section.hidden {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.live-section-title {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.25rem;
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.live-matches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.25rem;
+}
+
+.live-matches .match-card {
+    border-width: 2px;
+    transform: scale(1.02);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 30px var(--accent-glow);
+}
+
+.live-matches .match-card:hover {
+    transform: scale(1.03);
+}
+
+.filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--surface-light);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    background: var(--surface-light);
+}
+
+.matches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+}
+
+.match-card {
+    background: var(--surface);
+    border-radius: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--surface-light);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.match-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.match-card.live {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 20px var(--accent-glow);
+}
+
+.match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.match-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.live-badge {
+    background: var(--danger);
+    color: #fff;
+    animation: pulse 1.5s infinite;
+}
+
+.finished-badge {
+    background: var(--surface-light);
+    color: var(--text-muted);
+}
+
+.upcoming-badge {
+    background: #0ea5e9;
+    color: #fff;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.match-time {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.match-group {
+    font-size: 0.8rem;
+    color: var(--warning);
+    font-weight: 600;
+}
+
+.match-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Live matches: horizontal scoreboard layout */
+.live-matches .match-body {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    position: relative;
+}
+
+.live-matches .match-body::before {
+    content: "VS";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    background: var(--surface-light);
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+}
+
+.team {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.team-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.team-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.team-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.team-name {
+    font-weight: 600;
+}
+
+.team-form {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+}
+
+.score {
+    font-size: 1.75rem;
+    font-weight: 800;
+    min-width: 2ch;
+    text-align: right;
+}
+
+.team-goals {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding-left: 2.25rem;
+}
+
+.goal {
+    margin: 0.15rem 0;
+}
+
+.goal-team {
+    color: var(--text-muted);
+    font-size: 0.8em;
+}
+
+/* Live matches: horizontal scoreboard layout */
+.live-matches .team {
+    flex: 1;
+    text-align: center;
+    align-items: center;
+}
+
+.live-matches .team-main {
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.live-matches .team-info {
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.live-matches .team-logo {
+    width: 56px;
+    height: 56px;
+}
+
+.live-matches .team-name {
+    font-size: 1.1rem;
+}
+
+.live-matches .score {
+    font-size: 2.5rem;
+    min-width: auto;
+}
+
+.live-matches .team-goals {
+    padding-left: 0;
+    text-align: center;
+}
+
+.goals {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--surface-light);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.stats {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--surface-light);
+    font-size: 0.8rem;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.2rem 0;
+}
+
+.stat-label {
+    color: var(--text-muted);
+}
+
+.match-footer {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--surface-light);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.loading,
+.empty,
+.error {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+}
+
+.error {
+    color: #fca5a5;
+}
+
+.footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+    .matches {
+        grid-template-columns: 1fr;
+    }
+}
