@@ -3,7 +3,7 @@ FIFA World Cup 2026 Live Dashboard - Backend Proxy
 Proxies and normalizes the ESPN scoreboard API.
 """
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 import requests
@@ -14,6 +14,8 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
 ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+TOURNAMENT_START_DATE = "20260611"
+TOURNAMENT_END_DATE = "20260719"
 
 
 def _normalize_team(competitor: dict) -> dict:
@@ -135,6 +137,8 @@ def _fetch_scoreboard(date: str | None = None) -> dict:
     params = {}
     if date:
         params["date"] = date
+    else:
+        params["dates"] = f"{TOURNAMENT_START_DATE}-{TOURNAMENT_END_DATE}"
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
