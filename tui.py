@@ -122,7 +122,7 @@ def _format_time(iso_string: str) -> str:
     if not iso_string:
         return ""
     dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
-    return dt.strftime("%a, %b %d, %I:%M %p")
+    return dt.astimezone().strftime("%a, %b %d, %I:%M %p %Z")
 
 
 def _find_next_match(matches: list) -> dict | None:
