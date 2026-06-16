@@ -251,6 +251,9 @@ class WorldCupTUI(App):
     """Terminal dashboard for live FIFA World Cup 2026 matches."""
 
     CSS = """
+    HeaderIcon {
+        display: none;
+    }
     Screen {
         align: center top;
     }
@@ -400,7 +403,7 @@ class WorldCupTUI(App):
     error_message = reactive("")
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        yield Header(show_clock=True, icon="")
         with Vertical(id="main"):
             yield Label("Loading live matches...", id="status")
             yield VerticalScroll(id="match-list")
