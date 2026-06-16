@@ -170,49 +170,88 @@ def _countdown_to(iso_string: str) -> str:
     return " ".join(parts)
 
 
+def _sort_matches(matches: list) -> list:
+    """Sort matches like the web dashboard: live first, then finished, then upcoming."""
+    state_order = {"in": 0, "post": 1, "pre": 2}
+
+    def _key(match: dict):
+        state = match.get("state")
+        date = match.get("date") or ""
+        try:
+            ts = datetime.fromisoformat(date.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            ts = datetime.min.replace(tzinfo=timezone.utc)
+        # Within finished: most recent first; otherwise earliest first.
+        sort_ts = -ts.timestamp() if state == "post" else ts.timestamp()
+        return (state_order.get(state, 3), sort_ts)
+
+    return sorted(matches, key=_key)
+
+
 class MatchCard(Static):
-    """A live match card styled like the web dashboard."""
+    """A match card styled like the web dashboard."""
 
     def __init__(self, match: dict, **kwargs):
         super().__init__(**kwargs)
         self.match = match
 
+    def _state_badge(self) -> str:
+        state = self.match.get("state")
+        if state == "in":
+            return f"● LIVE {self.match.get('clock') or ''}"
+        if state == "post":
+            return "FT"
+        return self.match.get("shortDetail") or "SCHEDULED"
+
+    def _badge_class(self) -> str:
+        state = self.match.get("state")
+        if state == "in":
+            return "live-badge"
+        if state == "post":
+            return "finished-badge"
+        return "upcoming-badge"
+
+    def _match_key(self) -> str:
+        """Stable key used for diffing cards within a section."""
+        return self.match.get("id", "")
+
     def compose(self) -> ComposeResult:
-        home = next(t for t in self.match["teams"] if t["homeAway"] == "home")
-        away = next(t for t in self.match["teams"] if t["homeAway"] == "away")
-        home_goals = [g for g in self.match["goals"] if g["teamId"] == home["id"]]
-        away_goals = [g for g in self.match["goals"] if g["teamId"] == away["id"]]
+        home = next((t for t in self.match["teams"] if t["homeAway"] == "home"), {})
+        away = next((t for t in self.match["teams"] if t["homeAway"] == "away"), {})
+        state = self.match.get("state")
+        show_scores = state in ("in", "post")
+        home_goals = [g for g in self.match.get("goals", []) if g["teamId"] == home.get("id")] if show_scores else []
+        away_goals = [g for g in self.match.get("goals", []) if g["teamId"] == away.get("id")] if show_scores else []
         venue = self.match.get("venue") or ""
         city = self.match.get("venueCity") or ""
         broadcasts = self.match.get("broadcasts", [])
 
         with Vertical(classes="match-card"):
-            # Header: live badge + date | group
             with Horizontal(classes="match-header"):
                 with Horizontal(classes="header-left"):
-                    yield Label(f"● LIVE {self.match['clock'] or ''}", classes="live-badge")
+                    yield Label(self._state_badge(), classes=f"badge {self._badge_class()}")
                     yield Label(_format_time(self.match.get("date", "")), classes="match-time")
                 yield Label(self.match.get("group", ""), classes="match-group")
 
-            # Main scoreboard: home | center | away
             with Horizontal(classes="scoreboard"):
                 with Vertical(classes="team-col home-col"):
-                    yield Label(home["name"], classes="team-name")
+                    yield Label(home.get("name", "TBD"), classes="team-name")
                     yield Label(home.get("form", ""), classes="team-form")
-                    yield Label(str(home["score"]), classes="big-score")
-                    yield Label(self._goals_text(home_goals, home["abbreviation"]), classes="scorers")
+                    if show_scores:
+                        yield Label(str(home.get("score", "-")), classes="big-score")
+                        yield Label(self._goals_text(home_goals, home.get("abbreviation", "")), classes="scorers")
                 with Vertical(classes="center-col"):
                     yield Label("vs", classes="vs-badge")
                 with Vertical(classes="team-col away-col"):
-                    yield Label(away["name"], classes="team-name")
+                    yield Label(away.get("name", "TBD"), classes="team-name")
                     yield Label(away.get("form", ""), classes="team-form")
-                    yield Label(str(away["score"]), classes="big-score")
-                    yield Label(self._goals_text(away_goals, away["abbreviation"]), classes="scorers")
+                    if show_scores:
+                        yield Label(str(away.get("score", "-")), classes="big-score")
+                        yield Label(self._goals_text(away_goals, away.get("abbreviation", "")), classes="scorers")
 
-            # Stats table
-            yield from self._render_stats(home, away)
+            if show_scores:
+                yield from self._render_stats(home, away)
 
-            # Footer: venue | broadcasts
             with Horizontal(classes="match-footer"):
                 venue_text = f"🏟 {venue}" + (f", {city}" if city else "")
                 yield Label(venue_text, classes="venue")
@@ -268,11 +307,44 @@ class WorldCupTUI(App):
         content-align: center middle;
         color: $text-muted;
     }
-    #empty {
+    #content {
+        width: 100%;
+        height: 1fr;
+    }
+    .section {
         width: 100%;
         height: 100%;
+        display: none;
+    }
+    .section.active {
+        display: block;
+    }
+    .section-title {
+        width: 100%;
+        height: auto;
+        text-style: bold;
+        color: $text;
+        padding: 1 0 0 0;
+    }
+    #live-section .section-title {
+        color: $error;
+    }
+    #upcoming-section .section-title {
+        color: $warning;
+    }
+    #finished-section .section-title {
+        color: $success;
+    }
+    #live-matches, #upcoming-matches, #finished-matches {
+        width: 100%;
+        height: 1fr;
+    }
+    #empty {
+        width: 100%;
+        height: 1fr;
         content-align: center middle;
         color: $text-muted;
+        display: none;
     }
     .match-card {
         width: 100%;
@@ -289,10 +361,18 @@ class WorldCupTUI(App):
         width: auto;
         height: auto;
     }
-    .live-badge {
+    .badge {
         width: auto;
-        color: $error;
         text-style: bold;
+    }
+    .live-badge {
+        color: $error;
+    }
+    .finished-badge {
+        color: $success;
+    }
+    .upcoming-badge {
+        color: $warning;
     }
     .match-time {
         width: auto;
@@ -396,7 +476,13 @@ class WorldCupTUI(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
+        ("right", "next_section", "Next section"),
+        ("left", "prev_section", "Previous section"),
+        ("up", "scroll_up", "Scroll up"),
+        ("down", "scroll_down", "Scroll down"),
     ]
+
+    SECTIONS = ["live-section", "upcoming-section", "finished-section"]
 
     matches = reactive(list)
     last_updated = reactive("")
@@ -405,35 +491,144 @@ class WorldCupTUI(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True, icon="")
         with Vertical(id="main"):
-            yield Label("Loading live matches...", id="status")
-            yield VerticalScroll(id="match-list")
+            yield Label("Loading matches...", id="status")
+            with VerticalScroll(id="content"):
+                with Vertical(id="live-section", classes="section active"):
+                    yield Label("🔴 Live Now", classes="section-title")
+                    yield VerticalScroll(id="live-matches")
+                with Vertical(id="upcoming-section", classes="section"):
+                    yield Label("⏳ Upcoming", classes="section-title")
+                    yield VerticalScroll(id="upcoming-matches")
+                with Vertical(id="finished-section", classes="section"):
+                    yield Label("✅ Finished", classes="section-title")
+                    yield VerticalScroll(id="finished-matches")
             yield Label("", id="empty", classes="hidden")
         yield Footer()
 
     def on_mount(self) -> None:
         self.title = "FIFA World Cup 2026 — Live"
-        self.sub_title = "Press R to refresh, Q to quit"
+        self.sub_title = "← →: section | ↑ ↓: scroll | R: refresh | Q: quit"
         self._next_match = None
+        self._section_index = 0
         self.action_refresh()
         self.set_interval(REFRESH_SECONDS, self.action_refresh)
         self.set_interval(1, self._update_countdown)
 
-    def watch_matches(self, matches: list) -> None:
-        scroll = self.query_one("#match-list", VerticalScroll)
-        scroll.remove_children()
-        empty = self.query_one("#empty", Label)
+    def action_prev_section(self) -> None:
+        self._show_section(self._section_index - 1)
 
-        live = [m for m in matches if m.get("state") == "in"]
-        if not live:
-            self._next_match = _find_next_match(matches)
-            empty.update(self._next_match_text())
+    def _active_scroll(self) -> VerticalScroll | None:
+        section_id = self.SECTIONS[self._section_index]
+        try:
+            return self.query_one(f"#{section_id.replace('-section', '-matches')}", VerticalScroll)
+        except Exception:
+            return None
+
+    def action_scroll_up(self) -> None:
+        scroll = self._active_scroll()
+        if scroll:
+            scroll.scroll_up()
+
+    def action_scroll_down(self) -> None:
+        scroll = self._active_scroll()
+        if scroll:
+            scroll.scroll_down()
+
+    def _show_section(self, index: int) -> None:
+        self._section_index = index % len(self.SECTIONS)
+        for i, section_id in enumerate(self.SECTIONS):
+            section = self.query_one(f"#{section_id}", Vertical)
+            if i == self._section_index:
+                section.styles.display = "block"
+                section.add_class("active")
+            else:
+                section.styles.display = "none"
+                section.remove_class("active")
+        self._sync_empty_banner()
+
+    def action_next_section(self) -> None:
+        self._show_section(self._section_index + 1)
+
+    def _sync_empty_banner(self) -> None:
+        empty = self.query_one("#empty", Label)
+        content = self.query_one("#content", VerticalScroll)
+        section_id = self.SECTIONS[self._section_index]
+        section = self.query_one(f"#{section_id}", Vertical)
+        has_matches = bool(section.query(MatchCard))
+        if not has_matches:
+            content.styles.display = "none"
             empty.styles.display = "block"
+            if section_id == "live-section":
+                empty.update(self._next_match_text())
+            elif section_id == "upcoming-section":
+                empty.update("No upcoming matches.\nPress R to refresh.")
+            elif section_id == "finished-section":
+                empty.update("No finished matches.\nPress R to refresh.")
+        else:
+            content.styles.display = "block"
+            empty.styles.display = "none"
+
+    def _update_section(self, section_id: str, matches: list) -> None:
+        """Render match cards into a section, reusing existing cards when possible."""
+        section = self.query_one(f"#{section_id}", Vertical)
+        scroll = self.query_one(f"#{section_id.replace('-section', '-matches')}", VerticalScroll)
+
+        if not matches:
+            scroll.remove_children()
+            section.styles.display = "none"
             return
 
-        self._next_match = None
-        empty.styles.display = "none"
-        for match in live:
-            scroll.mount(MatchCard(match))
+        section.styles.display = "block"
+
+        # Index existing cards by match id so we can update in place.
+        existing: dict[str, MatchCard] = {}
+        for child in scroll.query_children(MatchCard):
+            key = child._match_key()
+            if key:
+                existing[key] = child
+
+        seen: set[str] = set()
+        to_mount: list[MatchCard] = []
+
+        for match in matches:
+            key = match.get("id", "")
+            if key:
+                seen.add(key)
+            card = existing.get(key)
+            if card is not None:
+                # Same match: only rebuild if content changed.
+                if card.match != match:
+                    card.match = match
+                    card.refresh(recompose=True)
+            else:
+                to_mount.append(MatchCard(match))
+
+        # Remove cards no longer in the list.
+        for key, card in list(existing.items()):
+            if key not in seen:
+                card.remove()
+
+        # Mount new cards in batch.
+        if to_mount:
+            scroll.mount_all(to_mount)
+
+    def watch_matches(self, matches: list) -> None:
+        sorted_matches = _sort_matches(matches)
+        live = [m for m in sorted_matches if m.get("state") == "in"]
+        upcoming = [m for m in sorted_matches if m.get("state") == "pre"]
+        finished = [m for m in sorted_matches if m.get("state") == "post"]
+
+        self._update_section("live-section", live)
+        self._update_section("upcoming-section", upcoming)
+        self._update_section("finished-section", finished)
+
+        # Surface the next upcoming match in the live section banner when nothing is live.
+        if not live:
+            self._next_match = _find_next_match(upcoming)
+        else:
+            self._next_match = None
+
+        self._show_section(self._section_index)
 
     def _next_match_text(self) -> str:
         if not self._next_match:
@@ -452,7 +647,7 @@ class WorldCupTUI(App):
         )
 
     def _update_countdown(self) -> None:
-        if not self._next_match:
+        if not self._next_match or self.SECTIONS[self._section_index] != "live-section":
             return
         empty = self.query_one("#empty", Label)
         empty.update(self._next_match_text())
@@ -468,7 +663,13 @@ class WorldCupTUI(App):
         try:
             data = fetch_scoreboard()
             self.matches = data["matches"]
-            self.last_updated = f"Updated: {datetime.now().strftime('%H:%M:%S')} | Live matches: {len([m for m in self.matches if m.get('state') == 'in'])}"
+            live = [m for m in self.matches if m.get("state") == "in"]
+            upcoming = [m for m in self.matches if m.get("state") == "pre"]
+            finished = [m for m in self.matches if m.get("state") == "post"]
+            self.last_updated = (
+                f"Updated: {datetime.now().strftime('%H:%M:%S')} | "
+                f"Live: {len(live)} | Upcoming: {len(upcoming)} | Finished: {len(finished)}"
+            )
             self.error_message = ""
         except Exception as exc:
             self.error_message = str(exc)
