@@ -33,6 +33,7 @@ Keys:
 - `q` — quit
 <img width="500" height="320" alt="image" src="https://github.com/user-attachments/assets/774f37cc-4814-417f-a968-42c6bc39ab06" />
 <img width="500" height="320" alt="image" src="https://github.com/user-attachments/assets/c748baff-ce3a-46b6-8534-182cc49bf86a" />
+
 ## API
 
 - `GET /` — Dashboard UI
